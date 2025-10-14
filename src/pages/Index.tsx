@@ -85,6 +85,16 @@ const Index = () => {
     }
   };
 
+  const handleGenerateFinding = (finding: string) => {
+    const newEntry: PathologyEntry = {
+      id: `${Date.now()}-${Math.random()}`,
+      pathology: "Hallazgo del flujo diagnóstico",
+      location: selectedTeeth.join(", "),
+      diagnosticText: finding
+    };
+    setPathologyEntries(prev => [...prev, newEntry]);
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <Header />
@@ -123,6 +133,8 @@ const Index = () => {
               onStepChange={setCurrentStep}
               completedSteps={completedSteps}
               onStepComplete={handleStepComplete}
+              selectedTeeth={selectedTeeth}
+              onGenerateFinding={handleGenerateFinding}
             />
             <PathologySelector
               selectedTeeth={selectedTeeth}
