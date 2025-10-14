@@ -1,213 +1,237 @@
-import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { ChevronRight, ChevronLeft, CheckCircle2 } from "lucide-react";
+import { ClipboardList, ChevronRight, ChevronLeft } from "lucide-react";
 
 interface DiagnosticFlowProps {
   xrayType: string;
+  currentStep: number;
+  onStepChange: (step: number) => void;
+  completedSteps: number[];
+  onStepComplete: (step: number, completed: boolean) => void;
 }
 
-const diagnosticSteps = {
+const DIAGNOSTIC_STEPS = {
   periapical: [
-    {
-      title: "Evaluar calidad de la imagen",
+    { 
+      title: "1. Evaluar calidad de imagen",
       checks: [
-        "¿La densidad y contraste son adecuados?",
-        "¿Hay artefactos (distorsión, superposición, movimiento)?",
-        "¿La imagen está centrada en la región de interés?"
+        "Densidad y contraste adecuados",
+        "Sin artefactos por movimiento",
+        "Sin superposición de estructuras",
+        "Posicionamiento correcto del sensor"
       ]
     },
     {
-      title: "Revisar anatomía normal",
+      title: "2. Revisar anatomía normal",
       checks: [
-        "Identificar lámina dura",
-        "Verificar espacio periodontal",
-        "Evaluar cortical ósea"
+        "Lámina dura visible y continua",
+        "Espacio del ligamento periodontal uniforme",
+        "Cresta ósea alveolar definida",
+        "Estructuras anatómicas normales identificadas"
       ]
     },
     {
-      title: "Evaluar por regiones",
+      title: "3. Evaluar por regiones",
       checks: [
-        "Corona: buscar caries",
-        "Raíz: evaluar reabsorción, hipercementosis",
-        "Hueso periapical: detectar lesiones radiolucentes",
+        "Corona: caries, restauraciones, fracturas",
+        "Raíz: reabsorción, fracturas, hipercementosis",
+        "Hueso periapical: lesiones radiolucentes/radiopacas",
         "Periodonto: pérdida ósea, lámina dura"
       ]
     },
     {
-      title: "Identificar anomalías",
+      title: "4. Identificar anomalías específicas",
       checks: [
-        "Evaluar densidad (radiolucente/radiopaca)",
-        "Analizar bordes (definidos/difusos)",
-        "Determinar localización exacta"
+        "Caries: profundidad y extensión",
+        "Lesiones periapicales: tamaño y bordes",
+        "Calcificaciones pulpares",
+        "Reabsorción radicular: interna o externa"
       ]
     }
   ],
   bitewing: [
     {
-      title: "Evaluar calidad de la imagen",
+      title: "1. Evaluar calidad de imagen",
       checks: [
-        "¿Las superficies interproximales están visibles?",
-        "¿Hay superposición de contactos?",
-        "¿La densidad es adecuada?"
+        "Superposición interproximal correcta",
+        "Contactos abiertos visibles",
+        "Cresta ósea visible",
+        "Sin elongación ni acortamiento"
       ]
     },
     {
-      title: "Evaluar caries interproximales",
+      title: "2. Revisar anatomía normal",
       checks: [
-        "Buscar radiolucencias triangulares en esmalte",
-        "Evaluar extensión en dentina",
-        "Clasificar profundidad (superficial/media/profunda)"
+        "Cresta ósea 1-2mm bajo unión amelocementaria",
+        "Lámina dura continua",
+        "Espacio periodontal uniforme",
+        "Simetría bilateral"
       ]
     },
     {
-      title: "Evaluar hueso periodontal",
+      title: "3. Evaluar superficies interproximales",
       checks: [
-        "Medir distancia desde unión amelocementaria",
-        "Identificar pérdida ósea (horizontal/vertical)",
-        "Evaluar lámina dura"
+        "Caries incipientes en esmalte",
+        "Caries en dentina: superficial, media, profunda",
+        "Caries recurrentes bajo restauraciones",
+        "Estado de restauraciones existentes"
+      ]
+    },
+    {
+      title: "4. Evaluar pérdida ósea periodontal",
+      checks: [
+        "Pérdida horizontal: leve, moderada, severa",
+        "Pérdida vertical (angular) si presente",
+        "Distribución: localizada vs generalizada",
+        "Medir desde unión amelocementaria"
       ]
     }
   ],
   panoramica: [
     {
-      title: "Evaluar calidad y simetría",
+      title: "1. Evaluar calidad de imagen",
       checks: [
-        "¿La imagen está centrada?",
-        "¿Hay artefactos de movimiento?",
-        "Evaluar simetría bilateral"
+        "Posicionamiento del paciente correcto",
+        "Sin artefactos fantasma o dobles",
+        "Simetría de estructuras bilaterales",
+        "Nitidez adecuada"
       ]
     },
     {
-      title: "Evaluar estructuras óseas",
+      title: "2. Evaluar maxilar y mandíbula",
       checks: [
-        "Maxilar/mandíbula: evaluar corticales",
-        "Buscar asimetrías",
-        "Identificar fracturas o discontinuidades"
+        "Simetría de estructuras óseas",
+        "Continuidad de corticales",
+        "Senos maxilares: tamaño, radiopacidad",
+        "ATM bilateral"
       ]
     },
     {
-      title: "Evaluar dientes",
+      title: "3. Evaluar dientes",
       checks: [
-        "Identificar dientes impactados",
-        "Buscar supernumerarios",
-        "Evaluar relaciones con estructuras adyacentes"
+        "Dientes impactados: posición y relación",
+        "Dientes supernumerarios",
+        "Ausencias dentales",
+        "Anomalías de forma y número"
       ]
     },
     {
-      title: "Buscar lesiones",
+      title: "4. Identificar lesiones óseas",
       checks: [
-        "Identificar radiolucencias (unilocular/multilocular)",
-        "Evaluar radiopacidades",
-        "Analizar bordes y extensión"
+        "Radiolucencias: uniloculares vs multiloculares",
+        "Radiopacidades: densidad y bordes",
+        "Quistes dentígeros en impactados",
+        "Lesiones tumorales sospechosas"
       ]
     }
   ],
   cbct: [
     {
-      title: "Evaluar calidad de adquisición",
+      title: "1. Evaluar calidad de imagen 3D",
       checks: [
-        "¿El volumen capturado es adecuado?",
-        "¿Hay artefactos metálicos?",
-        "Verificar resolución"
+        "Resolución adecuada para diagnóstico",
+        "Sin artefactos metálicos significativos",
+        "Campo de visión apropiado",
+        "Orientación correcta de los planos"
       ]
     },
     {
-      title: "Revisar en múltiples planos",
+      title: "2. Revisar en 3 planos",
       checks: [
-        "Corte axial: evaluar extensión transversal",
-        "Corte coronal: evaluar altura y relaciones verticales",
-        "Corte sagital: evaluar profundidad anteroposterior"
+        "Plano axial: extensión horizontal",
+        "Plano coronal: relación vertical",
+        "Plano sagital: relación anteroposterior",
+        "Reconstrucciones 3D si necesario"
       ]
     },
     {
-      title: "Evaluar cortical ósea",
+      title: "3. Evaluar hueso cortical y medular",
       checks: [
-        "Identificar expansión cortical",
-        "Evaluar erosión o perforación",
-        "Medir grosor óseo"
+        "Integridad de corticales vestibular/lingual",
+        "Expansión o perforación cortical",
+        "Patrón trabecular del hueso medular",
+        "Densidad ósea relativa"
       ]
     },
     {
-      title: "Analizar extensión 3D",
+      title: "4. Medir y caracterizar lesiones",
       checks: [
-        "Determinar límites exactos de lesiones",
-        "Evaluar relación con estructuras vitales",
-        "Planificar abordaje quirúrgico si necesario"
+        "Dimensiones exactas en 3D",
+        "Relación con estructuras vitales",
+        "Extensión a tejidos blandos",
+        "Características internas de la lesión"
       ]
     }
   ]
 };
 
-export const DiagnosticFlow = ({ xrayType }: DiagnosticFlowProps) => {
-  const [currentStep, setCurrentStep] = useState(0);
-  const [checkedItems, setCheckedItems] = useState<Record<number, boolean[]>>({});
-
-  const steps = diagnosticSteps[xrayType as keyof typeof diagnosticSteps] || diagnosticSteps.periapical;
-
-  const handleCheckChange = (stepIndex: number, checkIndex: number, checked: boolean) => {
-    setCheckedItems(prev => ({
-      ...prev,
-      [stepIndex]: {
-        ...prev[stepIndex],
-        [checkIndex]: checked
-      }
-    }));
-  };
-
-  const isStepComplete = (stepIndex: number) => {
-    const checks = checkedItems[stepIndex];
-    if (!checks) return false;
-    return Object.values(checks).every(v => v === true);
-  };
+export const DiagnosticFlow = ({ 
+  xrayType, 
+  currentStep, 
+  onStepChange,
+  completedSteps,
+  onStepComplete
+}: DiagnosticFlowProps) => {
+  const steps = DIAGNOSTIC_STEPS[xrayType as keyof typeof DIAGNOSTIC_STEPS] || DIAGNOSTIC_STEPS.periapical;
+  const currentStepData = steps[currentStep];
 
   return (
-    <Card className="p-6">
-      <div className="mb-6">
-        <div className="flex items-center justify-between mb-2">
-          <h2 className="text-lg font-semibold text-foreground">
-            Flujo de Diagnóstico
-          </h2>
-          <span className="text-sm text-muted-foreground">
-            Paso {currentStep + 1} de {steps.length}
-          </span>
+    <Card className="p-4">
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2">
+          <ClipboardList className="h-5 w-5 text-primary" />
+          <h3 className="text-base font-semibold text-foreground">Flujo de Diagnóstico Sistemático</h3>
         </div>
-        <div className="flex gap-1">
-          {steps.map((_, index) => (
-            <div
-              key={index}
-              className={`h-1 flex-1 rounded-full transition-colors ${
-                index <= currentStep ? 'bg-primary' : 'bg-muted'
-              }`}
-            />
-          ))}
-        </div>
+        <Badge variant="outline" className="text-xs">
+          Paso {currentStep + 1}/{steps.length}
+        </Badge>
       </div>
 
-      <div className="space-y-4 mb-6">
-        <div className="flex items-start gap-2">
-          {isStepComplete(currentStep) && (
-            <CheckCircle2 className="h-5 w-5 text-success mt-0.5" />
-          )}
-          <h3 className="text-base font-medium text-foreground">
-            {steps[currentStep].title}
-          </h3>
-        </div>
+      {/* Progress indicator */}
+      <div className="flex gap-1 mb-4">
+        {steps.map((_, index) => (
+          <div
+            key={index}
+            className={`h-1 flex-1 rounded-full transition-colors ${
+              completedSteps.includes(index)
+                ? 'bg-primary'
+                : index === currentStep
+                ? 'bg-primary/50'
+                : 'bg-muted'
+            }`}
+          />
+        ))}
+      </div>
 
-        <div className="space-y-3">
-          {steps[currentStep].checks.map((check, index) => (
-            <div key={index} className="flex items-start gap-3 p-3 bg-muted/50 rounded-lg">
-              <Checkbox
+      {/* Current step */}
+      <div className="mb-4">
+        <h4 className="text-sm font-semibold text-foreground mb-3">
+          {currentStepData.title}
+        </h4>
+        <div className="space-y-2">
+          {currentStepData.checks.map((check, index) => (
+            <div 
+              key={index} 
+              className="flex items-start gap-2 p-2 rounded-lg hover:bg-muted/50 transition-colors"
+            >
+              <Checkbox 
                 id={`check-${currentStep}-${index}`}
-                checked={checkedItems[currentStep]?.[index] || false}
-                onCheckedChange={(checked) => 
-                  handleCheckChange(currentStep, index, checked as boolean)
-                }
+                onCheckedChange={(checked) => {
+                  // Auto-complete step when all checks are done
+                  const allChecked = currentStepData.checks.every((_, i) => {
+                    const checkbox = document.getElementById(`check-${currentStep}-${i}`) as HTMLInputElement;
+                    return i === index ? checked : checkbox?.checked;
+                  });
+                  if (allChecked && !completedSteps.includes(currentStep)) {
+                    onStepComplete(currentStep, true);
+                  }
+                }}
               />
               <label
                 htmlFor={`check-${currentStep}-${index}`}
-                className="text-sm text-foreground cursor-pointer flex-1"
+                className="text-xs text-foreground cursor-pointer flex-1 leading-relaxed"
               >
                 {check}
               </label>
@@ -216,23 +240,41 @@ export const DiagnosticFlow = ({ xrayType }: DiagnosticFlowProps) => {
         </div>
       </div>
 
+      {/* Navigation */}
       <div className="flex gap-2">
         <Button
           variant="outline"
-          onClick={() => setCurrentStep(Math.max(0, currentStep - 1))}
+          size="sm"
+          onClick={() => onStepChange(Math.max(0, currentStep - 1))}
           disabled={currentStep === 0}
+          className="flex-1"
         >
           <ChevronLeft className="h-4 w-4 mr-1" />
           Anterior
         </Button>
         <Button
-          onClick={() => setCurrentStep(Math.min(steps.length - 1, currentStep + 1))}
+          variant="default"
+          size="sm"
+          onClick={() => {
+            if (!completedSteps.includes(currentStep)) {
+              onStepComplete(currentStep, true);
+            }
+            onStepChange(Math.min(steps.length - 1, currentStep + 1));
+          }}
           disabled={currentStep === steps.length - 1}
           className="flex-1"
         >
           Siguiente
           <ChevronRight className="h-4 w-4 ml-1" />
         </Button>
+      </div>
+
+      {/* ABCDE Method reminder */}
+      <div className="mt-4 p-3 bg-primary/5 rounded-lg border border-primary/20">
+        <p className="text-xs text-muted-foreground leading-relaxed">
+          <strong className="text-foreground">Método ABCDE:</strong> Airway (vías aéreas), Bone (hueso), 
+          Calcifications (calcificaciones), Dental (estructuras dentales), Extra (estructuras adicionales)
+        </p>
       </div>
     </Card>
   );

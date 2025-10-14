@@ -39,6 +39,8 @@ const Index = () => {
   const [selectedXRayType, setSelectedXRayType] = useState("periapical");
   const [selectedTeeth, setSelectedTeeth] = useState<string[]>([]);
   const [pathologyEntries, setPathologyEntries] = useState<PathologyEntry[]>([]);
+  const [currentStep, setCurrentStep] = useState(0);
+  const [completedSteps, setCompletedSteps] = useState<number[]>([]);
 
   const handleToothSelect = (tooth: string) => {
     setSelectedTeeth(prev => {
@@ -75,6 +77,14 @@ const Index = () => {
     setPathologyEntries(prev => prev.filter(entry => entry.id !== id));
   };
 
+  const handleStepComplete = (step: number, completed: boolean) => {
+    if (completed && !completedSteps.includes(step)) {
+      setCompletedSteps(prev => [...prev, step]);
+    } else if (!completed) {
+      setCompletedSteps(prev => prev.filter(s => s !== step));
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <Header />
@@ -86,6 +96,8 @@ const Index = () => {
             onValueChange={(value) => {
               setSelectedXRayType(value);
               setSelectedTeeth([]);
+              setCurrentStep(0);
+              setCompletedSteps([]);
             }}
           />
         </div>
@@ -105,7 +117,13 @@ const Index = () => {
 
           {/* Panel central: Flujo de diagnóstico y selección de patologías */}
           <div className="lg:col-span-1 space-y-4">
-            <DiagnosticFlow xrayType={selectedXRayType} />
+            <DiagnosticFlow 
+              xrayType={selectedXRayType}
+              currentStep={currentStep}
+              onStepChange={setCurrentStep}
+              completedSteps={completedSteps}
+              onStepComplete={handleStepComplete}
+            />
             <PathologySelector
               selectedTeeth={selectedTeeth}
               onPathologySelect={handlePathologySelect}
