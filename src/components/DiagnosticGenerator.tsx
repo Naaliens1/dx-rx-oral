@@ -3,8 +3,9 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
-import { FileText, Download, Trash2 } from "lucide-react";
+import { FileText, Download, Trash2, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
+import jsPDF from "jspdf";
 
 interface PathologyEntry {
   id: string;
@@ -84,53 +85,153 @@ Basado en White and Pharoah's Oral Radiology: Principles and Interpretation (8ª
   };
 
   const downloadReport = () => {
-    const blob = new Blob([fullReport], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `informe-radiologico-${Date.now()}.txt`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-    toast.success("Informe descargado exitosamente");
+    try {
+      const doc = new jsPDF();
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const pageHeight = doc.internal.pageSize.getHeight();
+      const margin = 20;
+      const maxWidth = pageWidth - 2 * margin;
+      let yPos = margin;
+
+      // Header
+      doc.setFillColor(33, 96, 158);
+      doc.rect(0, 0, pageWidth, 40, 'F');
+      
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(22);
+      doc.text('INFORME RADIOLÓGICO ORAL', pageWidth / 2, 25, { align: 'center' });
+      
+      yPos = 50;
+
+      // Date and X-ray type
+      doc.setTextColor(0, 0, 0);
+      doc.setFontSize(11);
+      const date = new Date().toLocaleDateString('es-ES', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      });
+      doc.text(`Fecha: ${date}`, margin, yPos);
+      yPos += 8;
+
+      const xrayTypeNames: Record<string, string> = {
+        periapical: "Periapical",
+        bitewing: "Bitewing",
+        panoramica: "Panorámica",
+        cbct: "CBCT (Tomografía Computarizada de Haz Cónico)"
+      };
+      doc.setFontSize(12);
+      doc.setFont(undefined, 'bold');
+      doc.text(`Tipo de Radiografía: ${xrayTypeNames[xrayType] || "No especificado"}`, margin, yPos);
+      doc.setFont(undefined, 'normal');
+      yPos += 15;
+
+      // Findings section
+      doc.setFontSize(14);
+      doc.setFont(undefined, 'bold');
+      doc.text('HALLAZGOS RADIOGRÁFICOS', margin, yPos);
+      doc.setFont(undefined, 'normal');
+      yPos += 10;
+
+      if (pathologyEntries.length === 0) {
+        doc.setFontSize(11);
+        doc.text('No se han registrado hallazgos patológicos.', margin, yPos);
+        yPos += 10;
+      } else {
+        doc.setFontSize(10);
+        pathologyEntries.forEach((entry, index) => {
+          // Check if we need a new page
+          if (yPos > pageHeight - 40) {
+            doc.addPage();
+            yPos = margin;
+          }
+
+          const lines = doc.splitTextToSize(
+            `${index + 1}. ${entry.diagnosticText}`,
+            maxWidth
+          );
+          
+          lines.forEach((line: string) => {
+            if (yPos > pageHeight - 40) {
+              doc.addPage();
+              yPos = margin;
+            }
+            doc.text(line, margin, yPos);
+            yPos += 7;
+          });
+          
+          yPos += 3;
+        });
+      }
+
+      // Footer
+      yPos = pageHeight - 30;
+      doc.setDrawColor(200, 200, 200);
+      doc.line(margin, yPos, pageWidth - margin, yPos);
+      yPos += 8;
+      
+      doc.setFontSize(9);
+      doc.setTextColor(100, 100, 100);
+      const footerText = 'Basado en White and Pharoah\'s Oral Radiology: Principles and Interpretation (8ª ed., 2019)';
+      doc.text(footerText, pageWidth / 2, yPos, { align: 'center' });
+
+      doc.save(`informe-radiologico-${Date.now()}.pdf`);
+      toast.success("Informe PDF descargado exitosamente");
+    } catch (error) {
+      console.error('Error generando PDF:', error);
+      toast.error("Error al generar el PDF");
+    }
   };
 
   return (
-    <Card className="p-4">
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-2">
-          <FileText className="h-4 w-4 text-primary" />
-          <h3 className="text-sm font-semibold text-foreground">Diagnóstico Generado</h3>
+    <Card className="p-6 h-full flex flex-col slide-in-right">
+      <div className="flex items-center gap-3 mb-4">
+        <div className="p-2 rounded-lg bg-primary/10">
+          <FileText className="h-5 w-5 text-primary" />
         </div>
-        <Badge variant="secondary" className="text-xs">
-          {pathologyEntries.length} hallazgos
-        </Badge>
+        <div className="flex-1">
+          <h3 className="text-lg font-semibold text-foreground">Informe Diagnóstico</h3>
+          <Badge variant="secondary" className="text-xs mt-1">
+            {pathologyEntries.length} hallazgo{pathologyEntries.length !== 1 ? 's' : ''}
+          </Badge>
+        </div>
       </div>
 
-      <ScrollArea className="h-[300px] w-full rounded-lg border bg-muted/30 p-3 mb-4">
+      <ScrollArea className="flex-1 rounded-lg border bg-gradient-to-b from-muted/30 to-muted/10 p-4 mb-4">
         {pathologyEntries.length === 0 ? (
-          <p className="text-xs text-muted-foreground text-center py-8">
-            Seleccione dientes y patologías para generar el diagnóstico automáticamente
-          </p>
+          <div className="flex flex-col items-center justify-center py-12 text-center">
+            <div className="p-4 rounded-full bg-muted/50 mb-4">
+              <AlertCircle className="h-8 w-8 text-muted-foreground" />
+            </div>
+            <p className="text-sm font-medium text-foreground mb-2">
+              Sin hallazgos registrados
+            </p>
+            <p className="text-xs text-muted-foreground max-w-[250px]">
+              Complete el flujo diagnóstico y seleccione patologías para generar el informe
+            </p>
+          </div>
         ) : (
           <div className="space-y-3">
             {pathologyEntries.map((entry, index) => (
-              <div key={entry.id} className="bg-background p-2 rounded border">
-                <div className="flex items-start justify-between gap-2 mb-1">
-                  <Badge variant="outline" className="text-xs">
-                    {index + 1}
+              <div 
+                key={entry.id} 
+                className="bg-background p-3.5 rounded-lg border shadow-sm hover:shadow-md transition-shadow fade-in"
+              >
+                <div className="flex items-start justify-between gap-3 mb-2">
+                  <Badge variant="default" className="text-xs font-semibold">
+                    #{index + 1}
                   </Badge>
                   <Button
                     variant="ghost"
                     size="sm"
                     onClick={() => onRemoveEntry(entry.id)}
-                    className="h-6 w-6 p-0"
+                    className="h-7 w-7 p-0 hover:bg-destructive/10 hover:text-destructive"
+                    title="Eliminar hallazgo"
                   >
-                    <Trash2 className="h-3 w-3" />
+                    <Trash2 className="h-3.5 w-3.5" />
                   </Button>
                 </div>
-                <p className="text-xs text-foreground leading-relaxed">
+                <p className="text-sm text-foreground leading-relaxed">
                   {entry.diagnosticText}
                 </p>
               </div>
@@ -139,15 +240,22 @@ Basado en White and Pharoah's Oral Radiology: Principles and Interpretation (8ª
         )}
       </ScrollArea>
 
-      <div className="space-y-2">
+      <div className="space-y-3 pt-2">
         <Button 
           onClick={downloadReport} 
-          className="w-full"
+          size="lg"
+          className="w-full gap-2 font-semibold"
           disabled={pathologyEntries.length === 0}
         >
-          <Download className="h-4 w-4 mr-2" />
-          Descargar Informe Completo
+          <Download className="h-5 w-5" />
+          Descargar Informe Completo (PDF)
         </Button>
+        
+        {pathologyEntries.length > 0 && (
+          <p className="text-xs text-center text-muted-foreground">
+            Informe profesional basado en White & Pharoah (8ª ed.)
+          </p>
+        )}
       </div>
     </Card>
   );

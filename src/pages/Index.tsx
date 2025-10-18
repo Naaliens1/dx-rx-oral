@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Header } from "@/components/Header";
 import { XRayTypeSelector } from "@/components/XRayTypeSelector";
 import { XRayViewer } from "@/components/XRayViewer";
@@ -6,6 +6,7 @@ import { DiagnosticFlow } from "@/components/DiagnosticFlow";
 import { ToothSelector } from "@/components/ToothSelector";
 import { PathologySelector } from "@/components/PathologySelector";
 import { DiagnosticGenerator } from "@/components/DiagnosticGenerator";
+import { Toaster } from "@/components/ui/sonner";
 
 interface PathologyEntry {
   id: string;
@@ -41,6 +42,7 @@ const Index = () => {
   const [pathologyEntries, setPathologyEntries] = useState<PathologyEntry[]>([]);
   const [currentStep, setCurrentStep] = useState(0);
   const [completedSteps, setCompletedSteps] = useState<number[]>([]);
+  const [hasImage, setHasImage] = useState(false);
 
   const handleToothSelect = (tooth: string) => {
     setSelectedTeeth(prev => {
@@ -98,8 +100,9 @@ const Index = () => {
   return (
     <div className="min-h-screen bg-background">
       <Header />
+      <Toaster />
       
-      <main className="container mx-auto px-4 py-6">
+      <main className="container mx-auto px-4 py-6 max-w-[1600px]">
         <div className="mb-6">
           <XRayTypeSelector 
             value={selectedXRayType} 
@@ -112,11 +115,12 @@ const Index = () => {
           />
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Panel izquierdo: Visor y selector de dientes */}
-          <div className="lg:col-span-1 space-y-4">
-            <div className="h-[400px]">
-              <XRayViewer />
+        {/* Layout 3 columnas: Visor | Flujo Diagnóstico | Informe */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          {/* Panel IZQUIERDO: Visor y selector de dientes */}
+          <div className="lg:col-span-4 space-y-6">
+            <div className="h-[450px]">
+              <XRayViewer onImageChange={setHasImage} />
             </div>
             <ToothSelector
               xrayType={selectedXRayType}
@@ -125,8 +129,8 @@ const Index = () => {
             />
           </div>
 
-          {/* Panel central: Flujo de diagnóstico y selección de patologías */}
-          <div className="lg:col-span-1 space-y-4">
+          {/* Panel CENTRAL: Flujo de diagnóstico y selección de patologías */}
+          <div className="lg:col-span-4 space-y-6">
             <DiagnosticFlow 
               xrayType={selectedXRayType}
               currentStep={currentStep}
@@ -135,6 +139,7 @@ const Index = () => {
               onStepComplete={handleStepComplete}
               selectedTeeth={selectedTeeth}
               onGenerateFinding={handleGenerateFinding}
+              hasImage={hasImage}
             />
             <PathologySelector
               selectedTeeth={selectedTeeth}
@@ -143,21 +148,23 @@ const Index = () => {
             />
           </div>
 
-          {/* Panel derecho: Diagnóstico generado */}
-          <div className="lg:col-span-1">
-            <DiagnosticGenerator
-              pathologyEntries={pathologyEntries}
-              onRemoveEntry={handleRemoveEntry}
-              xrayType={selectedXRayType}
-            />
+          {/* Panel DERECHO: Diagnóstico generado */}
+          <div className="lg:col-span-4">
+            <div className="sticky top-6">
+              <DiagnosticGenerator
+                pathologyEntries={pathologyEntries}
+                onRemoveEntry={handleRemoveEntry}
+                xrayType={selectedXRayType}
+              />
+            </div>
           </div>
         </div>
 
-        <footer className="mt-12 py-6 border-t border-border text-center text-sm text-muted-foreground">
-          <p>
-            Basado en <span className="font-medium">White and Pharoah's Oral Radiology: Principles and Interpretation</span> (8ª edición, 2019)
+        <footer className="mt-16 py-8 border-t border-border text-center">
+          <p className="text-sm text-muted-foreground">
+            Basado en <span className="font-semibold text-foreground">White and Pharoah's Oral Radiology: Principles and Interpretation</span> (8ª edición, 2019)
           </p>
-          <p className="mt-2">
+          <p className="mt-2 text-xs text-muted-foreground">
             Asistente de Diagnóstico en Radiología Oral - Herramienta educativa profesional
           </p>
         </footer>

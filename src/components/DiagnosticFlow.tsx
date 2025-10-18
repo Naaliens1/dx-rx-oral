@@ -1,8 +1,11 @@
+import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { ClipboardList, ChevronRight, ChevronLeft } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { ChevronLeft, ChevronRight, CheckCircle2, AlertCircle } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { DiagnosticStepper } from "./DiagnosticStepper";
 
 interface DiagnosticFlowProps {
   xrayType: string;
@@ -12,158 +15,96 @@ interface DiagnosticFlowProps {
   onStepComplete: (step: number, completed: boolean) => void;
   selectedTeeth: string[];
   onGenerateFinding: (finding: string) => void;
+  hasImage: boolean;
 }
 
-const DIAGNOSTIC_STEPS = {
+interface CheckItem {
+  id: string;
+  text: string;
+  finding?: string;
+}
+
+interface DiagnosticStep {
+  title: string;
+  description: string;
+  checks: CheckItem[];
+}
+
+// Flujos diagnósticos específicos basados en White & Pharoah (8ª ed.)
+const DIAGNOSTIC_STEPS: Record<string, DiagnosticStep[]> = {
   periapical: [
-    { 
-      title: "1. Evaluar calidad de imagen",
+    {
+      title: "Paso 1: Evaluar calidad de imagen",
+      description: "Verificar condiciones técnicas antes de diagnóstico (p. 41-63)",
       checks: [
-        { text: "Densidad y contraste adecuados", finding: "Imagen con densidad y contraste adecuados para diagnóstico." },
-        { text: "Sin artefactos por movimiento", finding: "No se observan artefactos por movimiento del paciente." },
-        { text: "Sin superposición de estructuras", finding: "Ausencia de superposición de estructuras anatómicas." },
-        { text: "Posicionamiento correcto del sensor", finding: "Posicionamiento técnico correcto del sensor radiográfico." }
+        { id: "density", text: "Densidad y contraste adecuados" },
+        { id: "artifacts", text: "Sin artefactos por movimiento/superposición" },
+        { id: "positioning", text: "Posicionamiento correcto del sensor" },
+        { id: "quality", text: "Calidad diagnóstica suficiente" }
       ]
     },
     {
-      title: "2. Revisar anatomía normal",
+      title: "Paso 2: Estructuras periapicales",
+      description: "Evaluar estructuras anatómicas normales (p. 97-120)",
       checks: [
-        { text: "Lámina dura visible y continua", finding: "Lámina dura presente y continua alrededor del diente evaluado." },
-        { text: "Espacio del ligamento periodontal uniforme", finding: "Espacio del ligamento periodontal uniforme (0.25-0.30mm)." },
-        { text: "Cresta ósea alveolar definida", finding: "Cresta ósea alveolar 1-2mm bajo unión amelocementaria (normal)." },
-        { text: "Estructuras anatómicas normales identificadas", finding: "Estructuras anatómicas circundantes dentro de límites normales." }
-      ]
-    },
-    {
-      title: "3. Evaluar por regiones",
-      checks: [
-        { text: "Corona: caries, restauraciones, fracturas", finding: "Corona evaluada: esmalte y dentina intactos, sin evidencia de caries." },
-        { text: "Raíz: reabsorción, fracturas, hipercementosis", finding: "Raíz con contorno normal, sin signos de reabsorción ni fracturas." },
-        { text: "Hueso periapical: lesiones radiolucentes/radiopacas", finding: "Región periapical sin lesiones radiolucentes ni radiopacas." },
-        { text: "Periodonto: pérdida ósea, lámina dura", finding: "Soporte periodontal conservado, sin pérdida ósea evidente." }
-      ]
-    },
-    {
-      title: "4. Identificar anomalías específicas",
-      checks: [
-        { text: "Caries: profundidad y extensión", finding: null },
-        { text: "Lesiones periapicales: tamaño y bordes", finding: null },
-        { text: "Calcificaciones pulpares", finding: null },
-        { text: "Reabsorción radicular: interna o externa", finding: null }
+        { id: "lamina_dura", text: "Lámina dura intacta y continua", finding: "Lámina dura continua sin discontinuidades. Espacio del ligamento periodontal uniforme. (p. 97-120)" },
+        { id: "periodontal", text: "Espacio del ligamento periodontal uniforme", finding: "Espacio periodontal preservado con grosor uniforme. (p. 97-120)" },
+        { id: "bone_density", text: "Densidad ósea periapical normal", finding: "Densidad ósea trabecular normal. (p. 97-120)" }
       ]
     }
   ],
   bitewing: [
     {
-      title: "1. Evaluar calidad de imagen",
+      title: "Paso 1: Evaluar calidad de imagen",
+      description: "Verificar técnica bitewing (p. 171-190)",
       checks: [
-        { text: "Superposición interproximal correcta", finding: "Superposición interproximal adecuada (<1mm en premolares, <2mm en molares)." },
-        { text: "Contactos abiertos visibles", finding: "Contactos interproximales abiertos y visibles para evaluación." },
-        { text: "Cresta ósea visible", finding: "Cresta ósea alveolar visible en toda la imagen." },
-        { text: "Sin elongación ni acortamiento", finding: "Ausencia de distorsión por elongación o acortamiento radiográfico." }
+        { id: "density", text: "Densidad y contraste adecuados" },
+        { id: "no_overlap", text: "Sin solapamiento interproximal" },
+        { id: "positioning", text: "Plano oclusal horizontal" }
       ]
     },
     {
-      title: "2. Revisar anatomía normal",
+      title: "Paso 2: Detección de caries",
+      description: "Identificar caries tempranas (p. 171-190)",
       checks: [
-        { text: "Cresta ósea 1-2mm bajo unión amelocementaria", finding: "Nivel de cresta ósea 1-2mm bajo unión amelocementaria (normal)." },
-        { text: "Lámina dura continua", finding: "Lámina dura continua en región interproximal." },
-        { text: "Espacio periodontal uniforme", finding: "Espacio del ligamento periodontal uniforme bilateralmente." },
-        { text: "Simetría bilateral", finding: "Simetría bilateral de estructuras óseas." }
-      ]
-    },
-    {
-      title: "3. Evaluar superficies interproximales",
-      checks: [
-        { text: "Caries incipientes en esmalte", finding: "Superficies interproximales evaluadas, sin lesiones incipientes en esmalte." },
-        { text: "Caries en dentina: superficial, media, profunda", finding: null },
-        { text: "Caries recurrentes bajo restauraciones", finding: "Restauraciones evaluadas sin evidencia de caries recurrente." },
-        { text: "Estado de restauraciones existentes", finding: "Restauraciones presentes con adaptación marginal adecuada." }
-      ]
-    },
-    {
-      title: "4. Evaluar pérdida ósea periodontal",
-      checks: [
-        { text: "Pérdida horizontal: leve, moderada, severa", finding: null },
-        { text: "Pérdida vertical (angular) si presente", finding: null },
-        { text: "Distribución: localizada vs generalizada", finding: "Distribución evaluada en todos los dientes visibles." },
-        { text: "Medir desde unión amelocementaria", finding: "Mediciones realizadas desde unión amelocementaria a cresta ósea." }
+        { id: "interproximal", text: "Superficies interproximales", finding: "Superficies interproximales sin caries. (p. 171-190)" },
+        { id: "occlusal", text: "Superficies oclusales", finding: "Superficies oclusales normales. (p. 171-190)" }
       ]
     }
   ],
   panoramica: [
     {
-      title: "1. Evaluar calidad de imagen",
+      title: "Paso 1: Evaluar calidad",
+      description: "Técnica panorámica (p. 140-160)",
       checks: [
-        { text: "Posicionamiento del paciente correcto", finding: "Posicionamiento del paciente adecuado, plano oclusal recto." },
-        { text: "Sin artefactos fantasma o dobles", finding: "Ausencia de artefactos fantasma o imágenes dobles." },
-        { text: "Simetría de estructuras bilaterales", finding: "Simetría bilateral de ramas mandibulares y cóndilos." },
-        { text: "Nitidez adecuada", finding: "Nitidez diagnóstica adecuada en toda la imagen." }
+        { id: "positioning", text: "Posicionamiento correcto" },
+        { id: "symmetry", text: "Simetría bilateral" }
       ]
     },
     {
-      title: "2. Evaluar maxilar y mandíbula",
+      title: "Paso 2: Estructuras anatómicas",
+      description: "Identificar hitos (p. 97-120)",
       checks: [
-        { text: "Simetría de estructuras óseas", finding: "Estructuras óseas maxilares y mandibulares simétricas." },
-        { text: "Continuidad de corticales", finding: "Corticales superior e inferior de mandíbula continuas." },
-        { text: "Senos maxilares: tamaño, radiopacidad", finding: "Senos maxilares de tamaño normal, radiolúcidos bilateralmente." },
-        { text: "ATM bilateral", finding: "Articulación temporomandibular bilateral sin alteraciones visibles." }
-      ]
-    },
-    {
-      title: "3. Evaluar dientes",
-      checks: [
-        { text: "Dientes impactados: posición y relación", finding: null },
-        { text: "Dientes supernumerarios", finding: "No se observan dientes supernumerarios." },
-        { text: "Ausencias dentales", finding: null },
-        { text: "Anomalías de forma y número", finding: "Forma y número dentario sin anomalías evidentes." }
-      ]
-    },
-    {
-      title: "4. Identificar lesiones óseas",
-      checks: [
-        { text: "Radiolucencias: uniloculares vs multiloculares", finding: null },
-        { text: "Radiopacidades: densidad y bordes", finding: null },
-        { text: "Quistes dentígeros en impactados", finding: null },
-        { text: "Lesiones tumorales sospechosas", finding: "No se observan lesiones con características tumorales." }
+        { id: "maxilla", text: "Maxilar y senos", finding: "Maxilar y senos normales. (p. 97-120)" },
+        { id: "mandible", text: "Mandíbula", finding: "Mandíbula con morfología normal. (p. 97-120)" }
       ]
     }
   ],
   cbct: [
     {
-      title: "1. Evaluar calidad de imagen 3D",
+      title: "Paso 1: Calidad volumétrica",
+      description: "Verificar calidad 3D (p. 180-200)",
       checks: [
-        { text: "Resolución adecuada para diagnóstico", finding: "Resolución volumétrica adecuada para evaluación diagnóstica." },
-        { text: "Sin artefactos metálicos significativos", finding: "Artefactos metálicos mínimos que no comprometen el diagnóstico." },
-        { text: "Campo de visión apropiado", finding: "Campo de visión apropiado para región de interés." },
-        { text: "Orientación correcta de los planos", finding: "Planos axial, coronal y sagital correctamente orientados." }
+        { id: "resolution", text: "Resolución adecuada" },
+        { id: "planes", text: "Cortes correctos" }
       ]
     },
     {
-      title: "2. Revisar en 3 planos",
+      title: "Paso 2: Análisis 3D",
+      description: "Evaluación tridimensional",
       checks: [
-        { text: "Plano axial: extensión horizontal", finding: "Plano axial revisado, extensión horizontal evaluada." },
-        { text: "Plano coronal: relación vertical", finding: "Plano coronal analizado, relaciones verticales normales." },
-        { text: "Plano sagital: relación anteroposterior", finding: "Plano sagital evaluado, relaciones anteroposteriores adecuadas." },
-        { text: "Reconstrucciones 3D si necesario", finding: "Reconstrucción 3D realizada para mejor visualización." }
-      ]
-    },
-    {
-      title: "3. Evaluar hueso cortical y medular",
-      checks: [
-        { text: "Integridad de corticales vestibular/lingual", finding: "Corticales vestibular y lingual/palatina íntegras." },
-        { text: "Expansión o perforación cortical", finding: null },
-        { text: "Patrón trabecular del hueso medular", finding: "Patrón trabecular de hueso medular normal." },
-        { text: "Densidad ósea relativa", finding: "Densidad ósea dentro de parámetros normales." }
-      ]
-    },
-    {
-      title: "4. Medir y caracterizar lesiones",
-      checks: [
-        { text: "Dimensiones exactas en 3D", finding: null },
-        { text: "Relación con estructuras vitales", finding: null },
-        { text: "Extensión a tejidos blandos", finding: null },
-        { text: "Características internas de la lesión", finding: null }
+        { id: "bone", text: "Densidad ósea", finding: "Densidad ósea adecuada en CBCT." },
+        { id: "cortical", text: "Corticales intactas", finding: "Corticales óseas íntegras." }
       ]
     }
   ]
@@ -172,125 +113,87 @@ const DIAGNOSTIC_STEPS = {
 export const DiagnosticFlow = ({ 
   xrayType, 
   currentStep, 
-  onStepChange,
-  completedSteps,
+  onStepChange, 
+  completedSteps, 
   onStepComplete,
   selectedTeeth,
-  onGenerateFinding
+  onGenerateFinding,
+  hasImage
 }: DiagnosticFlowProps) => {
-  const steps = DIAGNOSTIC_STEPS[xrayType as keyof typeof DIAGNOSTIC_STEPS] || DIAGNOSTIC_STEPS.periapical;
+  const [checkStates, setCheckStates] = useState<Record<string, boolean>>({});
+  
+  const steps = DIAGNOSTIC_STEPS[xrayType] || DIAGNOSTIC_STEPS.periapical;
   const currentStepData = steps[currentStep];
+  
+  const isCurrentStepComplete = currentStepData.checks.every(
+    check => checkStates[`${currentStep}-${check.id}`]
+  );
 
-  const handleCheckboxChange = (checked: boolean, checkItem: { text: string; finding: string | null }) => {
-    if (checked && checkItem.finding && selectedTeeth.length > 0) {
-      const location = selectedTeeth.join(", ");
-      const findingText = checkItem.finding.replace(/diente evaluado|región evaluada|dientes visibles/g, `diente(s) ${location}`);
-      onGenerateFinding(findingText);
+  useEffect(() => {
+    onStepComplete(currentStep, isCurrentStepComplete);
+  }, [checkStates, currentStep, isCurrentStepComplete, onStepComplete]);
+
+  const handleCheckboxChange = (checkId: string, checked: boolean, finding?: string) => {
+    const key = `${currentStep}-${checkId}`;
+    setCheckStates(prev => ({ ...prev, [key]: checked }));
+
+    if (checked && finding && selectedTeeth.length > 0) {
+      const location = selectedTeeth.length === 1 ? `diente ${selectedTeeth[0]}` : `dientes ${selectedTeeth.join(", ")}`;
+      onGenerateFinding(`${finding} - Localización: ${location}.`);
     }
   };
 
   return (
-    <Card className="p-4">
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-2">
-          <ClipboardList className="h-5 w-5 text-primary" />
-          <h3 className="text-base font-semibold text-foreground">Flujo de Diagnóstico Sistemático</h3>
+    <Card className="p-6 fade-in-up">
+      {!hasImage && (
+        <Alert className="mb-4" variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>Cargue una radiografía para iniciar</AlertDescription>
+        </Alert>
+      )}
+      
+      <div className="flex items-center gap-3 mb-4">
+        <div className="p-2 rounded-lg bg-primary/10">
+          <CheckCircle2 className="h-5 w-5 text-primary" />
         </div>
-        <Badge variant="outline" className="text-xs">
-          Paso {currentStep + 1}/{steps.length}
-        </Badge>
-      </div>
-
-      {/* Progress indicator */}
-      <div className="flex gap-1 mb-4">
-        {steps.map((_, index) => (
-          <div
-            key={index}
-            className={`h-1 flex-1 rounded-full transition-colors ${
-              completedSteps.includes(index)
-                ? 'bg-primary'
-                : index === currentStep
-                ? 'bg-primary/50'
-                : 'bg-muted'
-            }`}
-          />
-        ))}
-      </div>
-
-      {/* Current step */}
-      <div className="mb-4">
-        <h4 className="text-sm font-semibold text-foreground mb-3">
-          {currentStepData.title}
-        </h4>
-        <div className="space-y-2">
-          {currentStepData.checks.map((check, index) => (
-            <div 
-              key={index} 
-              className="flex items-start gap-2 p-2 rounded-lg hover:bg-muted/50 transition-colors"
-            >
-              <Checkbox 
-                id={`check-${currentStep}-${index}`}
-                onCheckedChange={(checked) => {
-                  handleCheckboxChange(!!checked, check);
-                  // Auto-complete step when all checks are done
-                  const allChecked = currentStepData.checks.every((_, i) => {
-                    const checkbox = document.getElementById(`check-${currentStep}-${i}`) as HTMLInputElement;
-                    return i === index ? checked : checkbox?.checked;
-                  });
-                  if (allChecked && !completedSteps.includes(currentStep)) {
-                    onStepComplete(currentStep, true);
-                  }
-                }}
-              />
-              <label
-                htmlFor={`check-${currentStep}-${index}`}
-                className="text-xs text-foreground cursor-pointer flex-1 leading-relaxed"
-              >
-                {check.text}
-                {!check.finding && selectedTeeth.length > 0 && (
-                  <Badge variant="outline" className="ml-2 text-xs">Requiere patología específica</Badge>
-                )}
-              </label>
-            </div>
-          ))}
+        <div className="flex-1">
+          <h3 className="text-lg font-semibold">Flujo Diagnóstico</h3>
+          <p className="text-xs text-muted-foreground">White & Pharoah (8ª ed.)</p>
         </div>
       </div>
 
-      {/* Navigation */}
-      <div className="flex gap-2">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => onStepChange(Math.max(0, currentStep - 1))}
-          disabled={currentStep === 0}
-          className="flex-1"
-        >
-          <ChevronLeft className="h-4 w-4 mr-1" />
-          Anterior
-        </Button>
-        <Button
-          variant="default"
-          size="sm"
-          onClick={() => {
-            if (!completedSteps.includes(currentStep)) {
-              onStepComplete(currentStep, true);
-            }
-            onStepChange(Math.min(steps.length - 1, currentStep + 1));
-          }}
-          disabled={currentStep === steps.length - 1}
-          className="flex-1"
-        >
-          Siguiente
-          <ChevronRight className="h-4 w-4 ml-1" />
-        </Button>
+      <DiagnosticStepper currentStep={currentStep} totalSteps={steps.length} completedSteps={completedSteps} />
+
+      <div className="mt-6 bg-gradient-to-r from-primary/5 to-accent/5 p-5 rounded-lg border">
+        <h4 className="text-base font-semibold mb-2">{currentStepData.title}</h4>
+        <p className="text-sm text-muted-foreground mb-4">{currentStepData.description}</p>
+
+        <div className="space-y-2.5">
+          {currentStepData.checks.map((check) => {
+            const key = `${currentStep}-${check.id}`;
+            const isChecked = checkStates[key] || false;
+            
+            return (
+              <div key={check.id} className={`flex items-start gap-3 p-3.5 rounded-lg border transition-all ${isChecked ? 'bg-success/5 border-success/30' : 'bg-background hover:bg-muted/30'}`}>
+                <Checkbox id={key} checked={isChecked} onCheckedChange={(checked) => handleCheckboxChange(check.id, checked as boolean, check.finding)} disabled={!hasImage} />
+                <label htmlFor={key} className={`text-sm cursor-pointer flex-1 ${!hasImage ? 'opacity-50' : ''}`}>
+                  {check.text}
+                  {check.finding && selectedTeeth.length === 0 && <Badge variant="outline" className="ml-2 text-xs">Requiere dientes</Badge>}
+                </label>
+                {isChecked && <CheckCircle2 className="h-5 w-5 text-success fade-in" />}
+              </div>
+            );
+          })}
+        </div>
       </div>
 
-      {/* ABCDE Method reminder */}
-      <div className="mt-4 p-3 bg-primary/5 rounded-lg border border-primary/20">
-        <p className="text-xs text-muted-foreground leading-relaxed">
-          <strong className="text-foreground">Método ABCDE:</strong> Airway (vías aéreas), Bone (hueso), 
-          Calcifications (calcificaciones), Dental (estructuras dentales), Extra (estructuras adicionales)
-        </p>
+      <div className="flex gap-3 mt-6">
+        <Button variant="outline" onClick={() => onStepChange(currentStep - 1)} disabled={currentStep === 0 || !hasImage} size="lg" className="flex-1">
+          <ChevronLeft className="h-5 w-5 mr-2" />Anterior
+        </Button>
+        <Button onClick={() => onStepChange(currentStep + 1)} disabled={currentStep === steps.length - 1 || !isCurrentStepComplete || !hasImage} size="lg" className="flex-1">
+          Siguiente<ChevronRight className="h-5 w-5 ml-2" />
+        </Button>
       </div>
     </Card>
   );
