@@ -182,15 +182,17 @@ export const ToothSelector = ({ xrayType, onToothSelect, selectedTeeth }: ToothS
     : null;
 
   return (
-    <Card className="p-6">
-      <div className="flex items-center gap-2 mb-4">
-        <Target className="h-5 w-5 text-primary" />
-        <h3 className="text-base font-semibold text-foreground">{config.title}</h3>
+    <Card className="p-8">
+      <div className="flex items-center gap-3 mb-6">
+        <div className="p-2 rounded-lg bg-primary/10">
+          <Target className="h-5 w-5 text-primary" />
+        </div>
+        <h3 className="text-lg font-medium text-foreground">{config.title}</h3>
       </div>
       
       {!selectedQuadrant ? (
         // Vista de cuadrantes
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-2 gap-4">
           {config.quadrants.map((quadrant) => {
             const hasSelectedTeeth = quadrant.teeth.some(t => isSelected(t.number));
             return (
@@ -199,14 +201,14 @@ export const ToothSelector = ({ xrayType, onToothSelect, selectedTeeth }: ToothS
                 variant={hasSelectedTeeth ? "default" : "outline"}
                 size="lg"
                 onClick={() => setSelectedQuadrant(quadrant.id)}
-                className="h-24 flex flex-col items-center justify-center gap-2 text-sm font-semibold"
+                className="h-32 flex flex-col items-center justify-center gap-3 text-sm font-medium hover:scale-[1.02] transition-transform"
               >
-                <span className="text-2xl">{quadrant.id}</span>
-                <span className="text-xs font-normal opacity-90">
+                <span className="text-4xl font-semibold">{quadrant.id}</span>
+                <span className="text-sm font-normal opacity-80">
                   {quadrant.label}
                 </span>
                 {hasSelectedTeeth && (
-                  <Badge variant="secondary" className="text-xs mt-1">
+                  <Badge variant="secondary" className="text-xs mt-1 font-normal">
                     {quadrant.teeth.filter(t => isSelected(t.number)).length} seleccionados
                   </Badge>
                 )}
@@ -217,29 +219,29 @@ export const ToothSelector = ({ xrayType, onToothSelect, selectedTeeth }: ToothS
       ) : (
         // Vista de dientes dentro del cuadrante
         <div>
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center justify-between mb-6">
             <Button
               variant="ghost"
               size="sm"
               onClick={() => setSelectedQuadrant(null)}
-              className="gap-2"
+              className="gap-2 hover:bg-accent/50"
             >
               <ArrowLeft className="h-4 w-4" />
-              Volver a cuadrantes
+              <span className="text-sm">Volver</span>
             </Button>
-            <Badge variant="outline" className="text-sm">
+            <Badge variant="outline" className="text-sm font-medium px-3 py-1">
               {currentQuadrant?.label}
             </Badge>
           </div>
 
-          <div className="grid grid-cols-4 gap-2">
+          <div className="grid grid-cols-4 gap-3">
             {currentQuadrant?.teeth.map((tooth) => (
               <Button
                 key={tooth.number}
                 variant={isSelected(tooth.number) ? "default" : "outline"}
                 size="sm"
                 onClick={() => onToothSelect(tooth.number)}
-                className="h-12 text-xs font-medium"
+                className="h-14 text-sm font-medium hover:scale-[1.02] transition-transform"
               >
                 {tooth.label}
               </Button>
@@ -249,11 +251,11 @@ export const ToothSelector = ({ xrayType, onToothSelect, selectedTeeth }: ToothS
       )}
 
       {selectedTeeth.length > 0 && (
-        <div className="mt-4 pt-4 border-t">
-          <p className="text-xs font-medium text-muted-foreground mb-2">
-            Dientes/Regiones seleccionados ({selectedTeeth.length}):
+        <div className="mt-6 pt-6 border-t border-border/50">
+          <p className="text-sm font-medium text-muted-foreground mb-3">
+            Seleccionados ({selectedTeeth.length})
           </p>
-          <div className="flex flex-wrap gap-1.5">
+          <div className="flex flex-wrap gap-2">
             {selectedTeeth.map((tooth) => {
               let toothData;
               for (const quadrant of config.quadrants) {
@@ -264,7 +266,7 @@ export const ToothSelector = ({ xrayType, onToothSelect, selectedTeeth }: ToothS
                 <Badge 
                   key={tooth} 
                   variant="secondary" 
-                  className="text-xs cursor-pointer hover:bg-secondary/80"
+                  className="text-sm px-3 py-1 cursor-pointer hover:bg-secondary/70 transition-colors font-normal"
                   onClick={() => onToothSelect(tooth)}
                 >
                   {toothData?.label}
