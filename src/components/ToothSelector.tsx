@@ -204,7 +204,7 @@ export const ToothSelector = ({ xrayType, onToothSelect, selectedTeeth }: ToothS
                 className="h-32 flex flex-col items-center justify-center gap-3 text-sm font-medium hover:scale-[1.02] transition-transform"
               >
                 <span className="text-4xl font-semibold">{quadrant.id}</span>
-                <span className="text-sm font-normal opacity-80">
+                <span className="text-base font-medium text-muted-foreground tracking-wide uppercase">
                   {quadrant.label}
                 </span>
                 {hasSelectedTeeth && (
